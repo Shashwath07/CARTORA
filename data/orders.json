@@ -1,0 +1,162 @@
+[
+  {
+    "order_id": "CT-824501",
+    "customer_id": "C1001",
+    "product_id": "P1001",
+    "product_name": "AirPulse Pro Wireless Earbuds",
+    "image_placeholder": "🎧",
+    "quantity": 1,
+    "price": 4999,
+    "currency": "INR",
+    "ordered_date": "2026-09-24",
+    "delivered_date": "2026-09-28",
+    "status": "Delivered",
+    "returnable": true,
+    "return_deadline": "2026-10-08",
+    "warranty_months": 12,
+    "warranty_end": "2027-09-28",
+    "delivery_steps": [
+      {
+        "step": "Order Placed",
+        "date": "2026-09-24",
+        "time": "10:32 AM",
+        "completed": true
+      },
+      {
+        "step": "Packed",
+        "date": "2026-09-25",
+        "time": "02:15 PM",
+        "completed": true
+      },
+      {
+        "step": "Shipped",
+        "date": "2026-09-25",
+        "time": "06:48 PM",
+        "completed": true
+      },
+      {
+        "step": "Out for Delivery",
+        "date": "2026-09-28",
+        "time": "08:20 AM",
+        "completed": true
+      },
+      {
+        "step": "Delivered",
+        "date": "2026-09-28",
+        "time": "12:45 PM",
+        "completed": true
+      }
+    ],
+    "courier": "BlueDart Express",
+    "tracking_id": "BD928374651",
+    "delivery_address": "42, Jubilee Hills, Hyderabad, Telangana 500033",
+    "payment_method": "UPI - Demo"
+  },
+  {
+    "order_id": "CT-823991",
+    "customer_id": "C1001",
+    "product_id": "P1004",
+    "product_name": "UrbanWeave Backpack",
+    "image_placeholder": "🎒",
+    "quantity": 1,
+    "price": 1699,
+    "currency": "INR",
+    "ordered_date": "2026-08-28",
+    "delivered_date": "2026-09-01",
+    "status": "Delivered",
+    "returnable": true,
+    "return_deadline": "2026-09-11",
+    "warranty_months": 0,
+    "warranty_end": null,
+    "delivery_steps": [
+      {
+        "step": "Order Placed",
+        "date": "2026-08-28",
+        "time": "03:10 PM",
+        "completed": true
+      },
+      {
+        "step": "Packed",
+        "date": "2026-08-29",
+        "time": "11:00 AM",
+        "completed": true
+      },
+      {
+        "step": "Shipped",
+        "date": "2026-08-29",
+        "time": "04:30 PM",
+        "completed": true
+      },
+      {
+        "step": "Out for Delivery",
+        "date": "2026-09-01",
+        "time": "09:15 AM",
+        "completed": true
+      },
+      {
+        "step": "Delivered",
+        "date": "2026-09-01",
+        "time": "01:22 PM",
+        "completed": true
+      }
+    ],
+    "courier": "Delhivery",
+    "tracking_id": "DL776251893",
+    "delivery_address": "42, Jubilee Hills, Hyderabad, Telangana 500033",
+    "payment_method": "Card - Demo"
+  },
+  {
+    "order_id": "CT-825004",
+    "customer_id": "C1002",
+    "product_id": "P1003",
+    "product_name": "SwiftBlend Mixer 600W",
+    "image_placeholder": "🍹",
+    "quantity": 1,
+    "price": 3299,
+    "currency": "INR",
+    "ordered_date": "2026-09-29",
+    "delivered_date": null,
+    "status": "Shipped",
+    "returnable": true,
+    "return_deadline": null,
+    "warranty_months": 24,
+    "warranty_end": null,
+    "expected_delivery": "2026-10-04",
+    "delivery_steps": [
+      {
+        "step": "Order Placed",
+        "date": "2026-09-29",
+        "time": "11:45 AM",
+        "completed": true
+      },
+      {
+        "step": "Packed",
+        "date": "2026-09-30",
+        "time": "09:30 AM",
+        "completed": true
+      },
+      {
+        "step": "Shipped",
+        "date": "2026-09-30",
+        "time": "03:00 PM",
+        "completed": true
+      },
+      {
+        "step": "Out for Delivery",
+        "date": null,
+        "time": null,
+        "completed": false
+      },
+      {
+        "step": "Delivered",
+        "date": null,
+        "time": null,
+        "completed": false
+      }
+    ],
+    "courier": "DTDC Express",
+    "tracking_id": "DT553892174",
+    "delivery_address": "15, Koramangala 4th Block, Bengaluru, Karnataka 560034",
+    "payment_method": "UPI - Demo"
+  }
+]

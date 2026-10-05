@@ -1,0 +1,22 @@
+{
+  "C1001": {
+    "name": "Maya Sharma",
+    "email": "maya.sharma@cartora.example",
+    "tier": "Cartora Plus",
+    "city": "Hyderabad",
+    "member_since": "2024-03-15",
+    "avatar_initials": "MS",
+    "saved_address": "42, Jubilee Hills, Hyderabad, Telangana 500033",
+    "phone": "+91 98XXX XXXXX"
+  },
+  "C1002": {
+    "name": "Arjun Verma",
+    "email": "arjun.verma@cartora.example",
+    "tier": "Standard",
+    "city": "Bengaluru",
+    "member_since": "2025-01-22",
+    "avatar_initials": "AV",
+    "saved_address": "15, Koramangala 4th Block, Bengaluru, Karnataka 560034",
+    "phone": "+91 87XXX XXXXX"
+  }
+}

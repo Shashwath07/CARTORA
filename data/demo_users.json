@@ -1,0 +1,12 @@
+{
+  "maya.sharma@cartora.example": {
+    "password": "CartoraDemo#1",
+    "customer_id": "C1001",
+    "name": "Maya Sharma"
+  },
+  "arjun.verma@cartora.example": {
+    "password": "CartoraDemo#2",
+    "customer_id": "C1002",
+    "name": "Arjun Verma"
+  }
+}
