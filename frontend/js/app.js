@@ -809,10 +809,12 @@ const Cartora = (function () {
                             <textarea id="chatInput" class="chat-input" placeholder="Ask about an order, product, delivery, return, refund, warranty or account issue..." rows="1"></textarea>
                             <button id="btnSend" class="chat-send-btn">↑</button>
                         </div>
-                        <div class="diagnostics" id="diagBar" style="display:none;">
+                        <div class="diagnostics" id="diagBar" style="display:none; flex-wrap:wrap; gap:8px;">
                             <span class="text-xs text-muted">Dev:</span>
                             <div class="diag-item"><div class="diag-dot" id="diagMemDot"></div><span id="diagMemText"></span></div>
                             <div class="diag-item"><div class="diag-dot" id="diagSaveDot"></div><span id="diagSaveText"></span></div>
+                            <div class="diag-item"><span id="diagTokensText" class="text-xs text-muted"></span></div>
+                            <div class="diag-item"><span id="diagLatencyText" class="text-xs text-muted"></span></div>
                         </div>
                     </div>
                 </div>
@@ -930,6 +932,12 @@ const Cartora = (function () {
                             document.getElementById('diagMemText').textContent = `Memories: ${res.memories_used}`;
                             document.getElementById('diagSaveDot').className = 'diag-dot ' + (res.memory_saved ? 'diag-dot-success' : 'diag-dot-error');
                             document.getElementById('diagSaveText').textContent = res.memory_saved ? 'Saved' : 'Not saved';
+                            if (res.tokens) {
+                                document.getElementById('diagTokensText').textContent = `Tokens: ${res.tokens.prompt_tokens}p + ${res.tokens.completion_tokens}c`;
+                            }
+                            if (res.latency_ms) {
+                                document.getElementById('diagLatencyText').textContent = `Latency: ${res.latency_ms.recall}ms rcl + ${res.latency_ms.llm}ms llm + ${res.latency_ms.retain}ms ret (${res.latency_ms.total}ms tot)`;
+                            }
                         }
                     } else {
                         convo.messages.push({ role: 'assistant', content: 'I apologize, but I was unable to process your request. Please try again.', time: ui.timeNow() });

@@ -15,7 +15,7 @@ def get_groq_client():
         raise LLMError('GROQ_API_KEY not configured')
     return Groq(api_key=api_key)
 
-def generate_response(messages: list) -> str:
+def generate_response(messages: list) -> dict:
     """Generate response using Groq."""
     try:
         client = get_groq_client()
@@ -29,7 +29,15 @@ def generate_response(messages: list) -> str:
         content = response.choices[0].message.content
         if not content:
             raise LLMError('Empty response from model')
-        return content
+        
+        usage = response.usage
+        return {
+            'content': content,
+            'usage': {
+                'prompt_tokens': getattr(usage, 'prompt_tokens', 0) if usage else 0,
+                'completion_tokens': getattr(usage, 'completion_tokens', 0) if usage else 0
+            }
+        }
     except LLMError:
         raise
     except Exception as e:

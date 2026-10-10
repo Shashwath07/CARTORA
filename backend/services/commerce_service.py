@@ -9,24 +9,38 @@ logger = logging.getLogger(__name__)
 
 DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'data')
 
+import threading
+import tempfile
+import shutil
+
+_db_lock = threading.RLock()
+
 def _load_json(filename):
     path = os.path.join(DATA_DIR, filename)
-    try:
-        with open(path, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    except Exception as e:
-        logger.error(f'Failed to load {filename}: {e}')
-        return [] if filename != 'customers.json' and filename != 'demo_users.json' else {}
+    with _db_lock:
+        try:
+            with open(path, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except FileNotFoundError:
+            return [] if filename not in ('customers.json', 'demo_users.json') else {}
+        except json.JSONDecodeError as e:
+            logger.error(f'Corruption in {filename}: {e}')
+            raise  # Do NOT swallow parse errors; fail instead of returning [] and overwriting!
 
 def _save_json(filename, data):
     path = os.path.join(DATA_DIR, filename)
-    try:
-        with open(path, 'w', encoding='utf-8') as f:
-            json.dump(data, f, indent=2, ensure_ascii=False)
-        return True
-    except Exception as e:
-        logger.error(f'Failed to save {filename}: {e}')
-        return False
+    with _db_lock:
+        try:
+            fd, temp_path = tempfile.mkstemp(dir=DATA_DIR, text=True)
+            with os.fdopen(fd, 'w', encoding='utf-8') as f:
+                json.dump(data, f, indent=2, ensure_ascii=False)
+                f.flush()
+                os.fsync(f.fileno())
+            os.replace(temp_path, path)
+            return True
+        except Exception as e:
+            logger.error(f'Failed to save {filename}: {e}')
+            return False
 
 def _generate_id(prefix):
     num = ''.join(random.choices(string.digits, k=6))
@@ -85,52 +99,53 @@ def get_order(order_id, customer_id):
     return None
 
 def create_demo_order(customer_id, product_id, address=None, payment_method='UPI - Demo'):
-    product = get_product(product_id)
-    if not product:
-        return None, 'Product not found'
-    if not product.get('in_stock'):
-        return None, 'Product out of stock'
-    customer = get_customer_profile(customer_id)
-    if not customer:
-        return None, 'Customer not found'
-    today = _today()
-    order_num = ''.join(random.choices(string.digits, k=6))
-    est_days = product.get('delivery_estimate_days', 5)
-    from datetime import timedelta
-    expected = today + timedelta(days=est_days)
-    order = {
-        'order_id': f'CT-{order_num}',
-        'customer_id': customer_id,
-        'product_id': product_id,
-        'product_name': product['name'],
-        'image_placeholder': product.get('image_placeholder', '📦'),
-        'quantity': 1,
-        'price': product['price'],
-        'currency': product.get('currency', 'INR'),
-        'ordered_date': today.isoformat(),
-        'delivered_date': None,
-        'status': 'Order Placed',
-        'returnable': product.get('returnable', True),
-        'return_deadline': None,
-        'warranty_months': product.get('warranty_months', 0),
-        'warranty_end': None,
-        'expected_delivery': expected.isoformat(),
-        'delivery_steps': [
-            {'step': 'Order Placed', 'date': today.isoformat(), 'time': datetime.now().strftime('%I:%M %p'), 'completed': True},
-            {'step': 'Packed', 'date': None, 'time': None, 'completed': False},
-            {'step': 'Shipped', 'date': None, 'time': None, 'completed': False},
-            {'step': 'Out for Delivery', 'date': None, 'time': None, 'completed': False},
-            {'step': 'Delivered', 'date': None, 'time': None, 'completed': False}
-        ],
-        'courier': 'Cartora Logistics',
-        'tracking_id': f'CL{"" .join(random.choices(string.digits, k=9))}',
-        'delivery_address': address or customer.get('saved_address', 'Address on file'),
-        'payment_method': payment_method
-    }
-    orders = _load_json('orders.json')
-    orders.append(order)
-    _save_json('orders.json', orders)
-    return order, None
+    with _db_lock:
+        product = get_product(product_id)
+        if not product:
+            return None, 'Product not found'
+        if not product.get('in_stock'):
+            return None, 'Product out of stock'
+        customer = get_customer_profile(customer_id)
+        if not customer:
+            return None, 'Customer not found'
+        today = _today()
+        order_num = ''.join(random.choices(string.digits, k=6))
+        est_days = product.get('delivery_estimate_days', 5)
+        from datetime import timedelta
+        expected = today + timedelta(days=est_days)
+        order = {
+            'order_id': f'CT-{order_num}',
+            'customer_id': customer_id,
+            'product_id': product_id,
+            'product_name': product['name'],
+            'image_placeholder': product.get('image_placeholder', '📦'),
+            'quantity': 1,
+            'price': product['price'],
+            'currency': product.get('currency', 'INR'),
+            'ordered_date': today.isoformat(),
+            'delivered_date': None,
+            'status': 'Order Placed',
+            'returnable': product.get('returnable', True),
+            'return_deadline': None,
+            'warranty_months': product.get('warranty_months', 0),
+            'warranty_end': None,
+            'expected_delivery': expected.isoformat(),
+            'delivery_steps': [
+                {'step': 'Order Placed', 'date': today.isoformat(), 'time': datetime.now().strftime('%I:%M %p'), 'completed': True},
+                {'step': 'Packed', 'date': None, 'time': None, 'completed': False},
+                {'step': 'Shipped', 'date': None, 'time': None, 'completed': False},
+                {'step': 'Out for Delivery', 'date': None, 'time': None, 'completed': False},
+                {'step': 'Delivered', 'date': None, 'time': None, 'completed': False}
+            ],
+            'courier': 'Cartora Logistics',
+            'tracking_id': f'CL{"".join(random.choices(string.digits, k=9))}',
+            'delivery_address': address or customer.get('saved_address', 'Address on file'),
+            'payment_method': payment_method
+        }
+        orders = _load_json('orders.json')
+        orders.append(order)
+        _save_json('orders.json', orders)
+        return order, None
 
 # ---- Return eligibility ----
 
@@ -158,49 +173,50 @@ def check_return_eligibility(order_id, customer_id):
     }, None
 
 def create_return(order_id, customer_id, reason, item_condition):
-    elig, err = check_return_eligibility(order_id, customer_id)
-    if err:
-        return None, err
-    if not elig or not elig.get('eligible'):
-        return None, elig.get('reason', 'Not eligible for return')
-    order = get_order(order_id, customer_id)
-    return_id = _generate_id('RET')
-    today = _today().isoformat()
-    ret = {
-        'return_id': return_id,
-        'order_id': order_id,
-        'customer_id': customer_id,
-        'product_name': order.get('product_name'),
-        'product_id': order.get('product_id'),
-        'reason': reason,
-        'item_condition': item_condition,
-        'status': 'Return Requested',
-        'refund_status': 'Pending',
-        'refund_amount': order.get('price'),
-        'refund_method': order.get('payment_method', 'Original payment method'),
-        'created_date': today,
-        'last_updated': today
-    }
-    returns = _load_json('returns.json')
-    returns.append(ret)
-    _save_json('returns.json', returns)
-    # Also create a case
-    case = {
-        'case_id': _generate_id('CSE'),
-        'customer_id': customer_id,
-        'type': 'Return',
-        'reference_id': return_id,
-        'order_id': order_id,
-        'product_name': order.get('product_name'),
-        'status': 'Open',
-        'summary': f'Return request for {order.get("product_name")} - {reason}',
-        'created_date': today,
-        'last_updated': today
-    }
-    cases = _load_json('cases.json')
-    cases.append(case)
-    _save_json('cases.json', cases)
-    return ret, None
+    with _db_lock:
+        elig, err = check_return_eligibility(order_id, customer_id)
+        if err:
+            return None, err
+        if not elig or not elig.get('eligible'):
+            return None, elig.get('reason', 'Not eligible for return')
+        order = get_order(order_id, customer_id)
+        return_id = _generate_id('RET')
+        today = _today().isoformat()
+        ret = {
+            'return_id': return_id,
+            'order_id': order_id,
+            'customer_id': customer_id,
+            'product_name': order.get('product_name'),
+            'product_id': order.get('product_id'),
+            'reason': reason,
+            'item_condition': item_condition,
+            'status': 'Return Requested',
+            'refund_status': 'Pending',
+            'refund_amount': order.get('price'),
+            'refund_method': order.get('payment_method', 'Original payment method'),
+            'created_date': today,
+            'last_updated': today
+        }
+        returns = _load_json('returns.json')
+        returns.append(ret)
+        _save_json('returns.json', returns)
+        # Also create a case
+        case = {
+            'case_id': _generate_id('CSE'),
+            'customer_id': customer_id,
+            'type': 'Return',
+            'reference_id': return_id,
+            'order_id': order_id,
+            'product_name': order.get('product_name'),
+            'status': 'Open',
+            'summary': f'Return request for {order.get("product_name")} - {reason}',
+            'created_date': today,
+            'last_updated': today
+        }
+        cases = _load_json('cases.json')
+        cases.append(case)
+        _save_json('cases.json', cases)
+        return ret, None
 
 # ---- Warranty ----
 
@@ -226,49 +242,50 @@ def check_warranty_status(order_id, customer_id):
     }, None
 
 def create_warranty_claim(order_id, customer_id, issue_category, description):
-    wstatus, err = check_warranty_status(order_id, customer_id)
-    if err:
-        return None, err
-    if not wstatus or not wstatus.get('active'):
-        reason = wstatus.get('reason', 'Warranty not active') if wstatus else 'Unable to verify warranty'
-        return None, reason
-    order = get_order(order_id, customer_id)
-    claim_id = _generate_id('WRC')
-    today = _today().isoformat()
-    claim = {
-        'claim_id': claim_id,
-        'order_id': order_id,
-        'customer_id': customer_id,
-        'product_name': order.get('product_name'),
-        'product_id': order.get('product_id'),
-        'issue_category': issue_category,
-        'description': description,
-        'warranty_end': order.get('warranty_end'),
-        'status': 'Claim Submitted',
-        'resolution': None,
-        'created_date': today,
-        'last_updated': today
-    }
-    warranties = _load_json('warranties.json')
-    warranties.append(claim)
-    _save_json('warranties.json', warranties)
-    # Also create a case
-    case = {
-        'case_id': _generate_id('CSE'),
-        'customer_id': customer_id,
-        'type': 'Warranty',
-        'reference_id': claim_id,
-        'order_id': order_id,
-        'product_name': order.get('product_name'),
-        'status': 'Open',
-        'summary': f'Warranty claim for {order.get("product_name")} - {issue_category}: {description[:100]}',
-        'created_date': today,
-        'last_updated': today
-    }
-    cases = _load_json('cases.json')
-    cases.append(case)
-    _save_json('cases.json', cases)
-    return claim, None
+    with _db_lock:
+        wstatus, err = check_warranty_status(order_id, customer_id)
+        if err:
+            return None, err
+        if not wstatus or not wstatus.get('active'):
+            reason = wstatus.get('reason', 'Warranty not active') if wstatus else 'Unable to verify warranty'
+            return None, reason
+        order = get_order(order_id, customer_id)
+        claim_id = _generate_id('WRC')
+        today = _today().isoformat()
+        claim = {
+            'claim_id': claim_id,
+            'order_id': order_id,
+            'customer_id': customer_id,
+            'product_name': order.get('product_name'),
+            'product_id': order.get('product_id'),
+            'issue_category': issue_category,
+            'description': description,
+            'warranty_end': order.get('warranty_end'),
+            'status': 'Claim Submitted',
+            'resolution': None,
+            'created_date': today,
+            'last_updated': today
+        }
+        warranties = _load_json('warranties.json')
+        warranties.append(claim)
+        _save_json('warranties.json', warranties)
+        # Also create a case
+        case = {
+            'case_id': _generate_id('CSE'),
+            'customer_id': customer_id,
+            'type': 'Warranty',
+            'reference_id': claim_id,
+            'order_id': order_id,
+            'product_name': order.get('product_name'),
+            'status': 'Open',
+            'summary': f'Warranty claim for {order.get("product_name")} - {issue_category}: {description[:100]}',
+            'created_date': today,
+            'last_updated': today
+        }
+        cases = _load_json('cases.json')
+        cases.append(case)
+        _save_json('cases.json', cases)
+        return claim, None
 
 # ---- Cases ----
 

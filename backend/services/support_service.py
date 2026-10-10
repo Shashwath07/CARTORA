@@ -27,15 +27,24 @@ def validate_request(customer_id: str, message: str):
 
 def handle_message(customer_id: str, message: str, order_context: str = None):
     """Process a customer support message through the full pipeline."""
+    import time
+    import json
+    
+    t_start = time.perf_counter()
+    
     # 1. Validate
     customer_id, message = validate_request(customer_id, message)
     # 2. Load customer profile
     profile = get_customer_profile(customer_id) or {}
     # 3. Build commerce context
     commerce_ctx = build_commerce_context(customer_id, order_id=order_context)
+    
     # 4. Recall relevant memories
+    t_recall_start = time.perf_counter()
     memories = recall_memories(customer_id, message)
+    t_recall = time.perf_counter() - t_recall_start
     memories_used = len(memories)
+    
     # 5. Build prompt
     prompt_messages = build_support_prompt(
         query=message,
@@ -43,16 +52,45 @@ def handle_message(customer_id: str, message: str, order_context: str = None):
         customer_profile=profile,
         commerce_context=commerce_ctx
     )
+    
     # 6. Generate response
-    raw_reply = generate_response(prompt_messages)
+    t_llm_start = time.perf_counter()
+    llm_output = generate_response(prompt_messages)
+    t_llm = time.perf_counter() - t_llm_start
+    raw_reply = llm_output['content']
+    usage = llm_output['usage']
+    
     # 7. Format response
     reply = format_response(raw_reply)
+    
     # 8. Retain the exchange
+    t_retain_start = time.perf_counter()
     exchange = f'Customer said: {message}\nSupport agent replied: {reply}'
     memory_saved = retain_memory(customer_id, exchange)
+    t_retain = time.perf_counter() - t_retain_start
+    
+    t_total = time.perf_counter() - t_start
+    
+    latency_ms = {
+        'recall': round(t_recall * 1000),
+        'llm': round(t_llm * 1000),
+        'retain': round(t_retain * 1000),
+        'total': round(t_total * 1000)
+    }
+    
+    telemetry = {
+        'customer_id': customer_id,
+        'tokens': usage,
+        'latency_ms': latency_ms,
+        'memories_used': memories_used
+    }
+    logger.info(f"TELEMETRY: {json.dumps(telemetry)}")
+    
     return {
         'reply': reply,
         'customer_id': customer_id,
         'memories_used': memories_used,
-        'memory_saved': memory_saved
+        'memory_saved': memory_saved,
+        'tokens': usage,
+        'latency_ms': latency_ms
     }
