@@ -137,7 +137,7 @@ def handle_message(customer_id: str, message: str, order_context: str = None, se
 
     # Normal flow
     profile = get_customer_profile(customer_id) or {}
-    commerce_ctx = build_commerce_context(customer_id, order_id=order_context)
+    commerce_ctx = build_commerce_context(customer_id, order_id=order_context, message=message)
     
     t_recall_start = time.perf_counter()
     cues = ['again', 'last time', 'still', 'earlier', 'before', 'already', 'tried', 'previous']

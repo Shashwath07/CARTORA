@@ -90,7 +90,7 @@ def row_to_dict(row):
 
 def get_customer_orders(customer_id):
     with get_db_connection() as conn:
-        rows = conn.execute("SELECT * FROM orders WHERE customer_id = ?", (customer_id,)).fetchall()
+        rows = conn.execute("SELECT * FROM orders WHERE customer_id = ? ORDER BY rowid DESC", (customer_id,)).fetchall()
         return [row_to_dict(r) for r in rows]
 
 def get_order(order_id, customer_id):
@@ -352,10 +352,40 @@ def get_customer_warranty_claims(customer_id):
         return [row_to_dict(r) for r in rows]
 
 # ---- Commerce context for chat ----
-def build_commerce_context(customer_id, order_id=None, orders=None):
+
+def search_relevant_orders(customer_id, message):
+    orders = get_customer_orders(customer_id)
+    if not message:
+        return orders[:5]
+        
+    message_lower = message.lower()
+    import re
+    order_ids = [x.upper() for x in re.findall(r'CT-\d{6}', message, re.IGNORECASE)]
+    
+    relevant = []
+    for o in orders:
+        if o['order_id'].upper() in order_ids:
+            if o not in relevant:
+                relevant.append(o)
+            continue
+            
+        prod_words = [w for w in o.get('product_name', '').lower().split() if len(w) > 3]
+        if any(w in message_lower for w in prod_words):
+            if o not in relevant:
+                relevant.append(o)
+            continue
+            
+    if not relevant:
+        return orders[:5]
+    return relevant[:5]
+
+def build_commerce_context(customer_id, order_id=None, orders=None, message=None):
     lines = []
     if orders is None:
-        orders = get_customer_orders(customer_id)
+        if message:
+            orders = search_relevant_orders(customer_id, message)
+        else:
+            orders = get_customer_orders(customer_id)[:5]
         
     if order_id:
         specific = next((o for o in orders if o['order_id'] == order_id), None)
@@ -388,7 +418,7 @@ def build_commerce_context(customer_id, order_id=None, orders=None):
                         lines.append(f'  Warranty: {"Active" if active else "Expired"} (until: {specific["warranty_end"]})')
     if orders:
         lines.append(f'\\nCustomer has {len(orders)} order(s):')
-        for o in orders[:5]:
+        for o in orders:
             line = f'  - {o["order_id"]}: {o.get("product_name")} - {o.get("status")}'
             if o.get('delivered_date'):
                 line += f' (delivered {o["delivered_date"]})'
