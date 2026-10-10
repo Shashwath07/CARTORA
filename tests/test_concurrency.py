@@ -33,7 +33,7 @@ def test_concurrent_checkouts():
         assert r.status_code == 200
         
     def do_checkout(s):
-        return s.post(f'{BASE_URL}/api/orders/demo-checkout', json={'product_id': 'P1005'})
+        return s.post(f'{BASE_URL}/api/orders/demo-checkout', json={'product_id': 'P1005'}, headers={'X-Requested-With': 'XMLHttpRequest'})
 
     # Fire 30 concurrent checkouts
     successes = 0

@@ -1,11 +1,11 @@
 {
   "maya.sharma@cartora.example": {
-    "password": "CartoraDemo#1",
+    "password": "scrypt:32768:8:1$MZ58hNI6wKFKMWHV$7c4d3e179d1d4c788531bc4523900cc10cdaca1ee34b356b757cd78b179644c6340726e847c1614ccaea12c53c256e6546e90b406ed78fa3e52298c5aae509a7",
     "customer_id": "C1001",
     "name": "Maya Sharma"
   },
   "arjun.verma@cartora.example": {
-    "password": "CartoraDemo#2",
+    "password": "scrypt:32768:8:1$pUrpg4SVbITqDzWx$eb09cc2cdb0874c5d1d449644d1a2f643bcbd3a10cf6af3fae01c1e84df0a1603fb86c4296a48f15d51c960c9f7c364c9c2f6173f715dc872a9101d3d6318d95",
     "customer_id": "C1002",
     "name": "Arjun Verma"
   }

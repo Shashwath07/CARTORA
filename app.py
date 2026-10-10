@@ -19,7 +19,17 @@ def create_app():
     from flask_limiter.util import get_remote_address
     
     app = Flask(__name__, static_folder=None)
-    app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'cartora-demo-secret-change-in-production')
+    
+    secret = os.environ.get('FLASK_SECRET_KEY')
+    if not secret:
+        raise ValueError('FLASK_SECRET_KEY must be set in environment')
+    app.secret_key = secret
+    
+    app.config.update(
+        SESSION_COOKIE_SAMESITE='Lax',
+        SESSION_COOKIE_SECURE=os.environ.get('FLASK_DEBUG', '0') != '1'
+    )
+
     
     limiter = Limiter(
         get_remote_address,

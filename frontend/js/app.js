@@ -890,7 +890,7 @@ const Cartora = (function () {
                 } else {
                     chatMessages.innerHTML = convo.messages.map(m => `
                         <div class="message message-${m.role}">
-                            <div class="message-bubble">${m.role === 'assistant' ? m.content : ui.esc(m.content)}</div>
+                            <div class="message-bubble">${ui.esc(m.content)}</div>
                             <div class="message-time">${m.time || ''}</div>
                         </div>
                     `).join('');

@@ -10,6 +10,8 @@ def list_orders():
     customer_id = session.get('customer_id')
     if not customer_id:
         return jsonify({'error': 'Not authenticated'}), 401
+    if request.headers.get('X-Requested-With') != 'XMLHttpRequest':
+        return jsonify({'error': 'CSRF token missing or invalid'}), 403
     orders = get_customer_orders(customer_id)
     return jsonify({'orders': orders})
 
@@ -18,6 +20,9 @@ def order_detail(order_id):
     customer_id = session.get('customer_id')
     if not customer_id:
         return jsonify({'error': 'Not authenticated'}), 401
+    if request.headers.get('X-Requested-With') != 'XMLHttpRequest':
+        return jsonify({'error': 'CSRF token missing or invalid'}), 403
+
     order = get_order(order_id, customer_id)
     if not order:
         return jsonify({'error': 'Order not found'}), 404
@@ -28,6 +33,8 @@ def demo_checkout():
     customer_id = session.get('customer_id')
     if not customer_id:
         return jsonify({'error': 'Not authenticated'}), 401
+    if request.headers.get('X-Requested-With') != 'XMLHttpRequest':
+        return jsonify({'error': 'CSRF token missing or invalid'}), 403
     data = request.get_json()
     if not data:
         return jsonify({'error': 'Request body required'}), 400
