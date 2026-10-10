@@ -27,6 +27,7 @@ const Cartora = (function () {
                 opts.headers['Content-Type'] = 'application/json';
                 opts.body = JSON.stringify(opts.body);
             }
+            opts.headers['X-Requested-With'] = 'XMLHttpRequest';
             try {
                 const res = await fetch(url, opts);
                 if (res.status === 401) { window.location.href = '/'; return null; }

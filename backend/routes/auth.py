@@ -47,10 +47,13 @@ def login():
     if user and check_password_hash(user.get('password'), password):
         session['customer_id'] = user['customer_id']
         login_attempts[ip] = 0 # reset
+        from backend.services.commerce_service import get_customer_profile
+        profile = get_customer_profile(user['customer_id']) or {}
+        profile['id'] = user['customer_id']
+        profile['email'] = email
         return jsonify({
             'success': True,
-            'customer_id': user['customer_id'],
-            'name': user['name']
+            'customer': profile
         })
     else:
         login_attempts[ip] = attempts + 1
@@ -68,7 +71,8 @@ def me():
         return jsonify({'error': 'Not authenticated'}), 401
         
     from backend.services.commerce_service import get_customer_profile
-    profile = get_customer_profile(customer_id)
-    if profile:
-        return jsonify(profile)
-    return jsonify({'error': 'Profile not found'}), 404
+    profile = get_customer_profile(customer_id) or {}
+    profile['id'] = customer_id
+    
+    # Actually email was not in profile, let's just make sure it returns customer
+    return jsonify({'customer': profile})
