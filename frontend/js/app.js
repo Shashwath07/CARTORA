@@ -922,6 +922,21 @@ const Cartora = (function () {
                     const res = await api.post('/api/chat', body);
                     const el = document.getElementById('typing');
                     if (el) el.remove();
+                    if (res && res.escalated && res.case_id) {
+                        const banner = document.createElement('div');
+                        banner.className = 'escalation-banner';
+                        banner.style.backgroundColor = '#fff3cd';
+                        banner.style.color = '#856404';
+                        banner.style.padding = '10px';
+                        banner.style.borderRadius = '5px';
+                        banner.style.marginBottom = '15px';
+                        banner.style.fontSize = '0.9rem';
+                        banner.style.border = '1px solid #ffeeba';
+                        banner.innerHTML = `<strong>⚠️ Case Escalated</strong><br>A human agent has been assigned. Case ID: ${res.case_id}`;
+                        chatMessages.appendChild(banner);
+                        chatMessages.scrollTop = chatMessages.scrollHeight;
+                        if (state.ordersView === 'cases') loadCases();
+                    }
                     if (res && res.reply) {
                         convo.messages.push({ role: 'assistant', content: res.reply, time: ui.timeNow() });
                         state.lastDiag = { memories_used: res.memories_used, memory_saved: res.memory_saved };

@@ -305,6 +305,37 @@ def create_warranty_claim(order_id, customer_id, issue_category, description):
 
 # ---- Cases ----
 
+def create_escalation_case(customer_id, order_id, brief):
+    with _db_lock:
+        case_id = _generate_id('CSE')
+        today = _today().isoformat()
+        
+        case = {
+            'case_id': case_id,
+            'customer_id': customer_id,
+            'type': 'Escalation',
+            'reference_id': None,
+            'order_id': order_id,
+            'product_name': 'Unknown',
+            'status': 'Open',
+            'summary': brief.get('issue', 'Escalation requested'),
+            'created_date': today,
+            'last_updated': today
+        }
+        
+        if order_id:
+            order = get_order(order_id, customer_id)
+            if order:
+                case['product_name'] = order.get('product_name', 'Unknown')
+                
+        with get_db_connection() as conn:
+            c2 = ', '.join(case.keys())
+            p2 = ', '.join('?' * len(case))
+            conn.execute(f"INSERT INTO cases ({c2}) VALUES ({p2})", list(case.values()))
+            conn.commit()
+            
+        return case
+
 def get_customer_cases(customer_id):
     with get_db_connection() as conn:
         rows = conn.execute("SELECT * FROM cases WHERE customer_id = ?", (customer_id,)).fetchall()
