@@ -1,5 +1,6 @@
 import re
 import logging
+import threading
 from backend.services.commerce_service import get_customer_profile, build_commerce_context
 from memory.memory_service import recall_memories, retain_memory
 from agent.prompts import build_support_prompt
@@ -7,6 +8,26 @@ from agent.llm import generate_response, LLMError
 from agent.response import format_response
 
 logger = logging.getLogger(__name__)
+
+# Short-term context store (last 5 turns per session)
+SHORT_TERM_CONTEXT = {}
+_ctx_lock = threading.Lock()
+
+def get_short_term_context(session_id: str):
+    with _ctx_lock:
+        return SHORT_TERM_CONTEXT.get(session_id, [])
+
+def add_short_term_context(session_id: str, user_msg: str, assistant_msg: str):
+    with _ctx_lock:
+        if session_id not in SHORT_TERM_CONTEXT:
+            SHORT_TERM_CONTEXT[session_id] = []
+        SHORT_TERM_CONTEXT[session_id].append({'user': user_msg, 'assistant': assistant_msg})
+        # Keep only last 5 turns
+        if len(SHORT_TERM_CONTEXT[session_id]) > 5:
+            SHORT_TERM_CONTEXT[session_id].pop(0)
+
+class ValidationError(Exception):
+    pass
 
 class ValidationError(Exception):
     pass
@@ -25,7 +46,7 @@ def validate_request(customer_id: str, message: str):
         raise ValidationError('Message must be under 1000 characters.')
     return customer_id, message
 
-def handle_message(customer_id: str, message: str, order_context: str = None):
+def handle_message(customer_id: str, message: str, order_context: str = None, session_id: str = 'default'):
     """Process a customer support message through the full pipeline."""
     import time
     import json
@@ -39,18 +60,28 @@ def handle_message(customer_id: str, message: str, order_context: str = None):
     # 3. Build commerce context
     commerce_ctx = build_commerce_context(customer_id, order_id=order_context)
     
-    # 4. Recall relevant memories
+    # 4. Recall relevant memories (only if cues are present)
     t_recall_start = time.perf_counter()
-    memories = recall_memories(customer_id, message)
+    cues = ['again', 'last time', 'still', 'earlier', 'before', 'already', 'tried', 'previous']
+    needs_memory = any(c in message.lower() for c in cues)
+    
+    memories = []
+    if needs_memory:
+        memories = recall_memories(customer_id, message)
+    
     t_recall = time.perf_counter() - t_recall_start
     memories_used = len(memories)
+    
+    # Fetch short term context
+    recent_turns = get_short_term_context(session_id)
     
     # 5. Build prompt
     prompt_messages = build_support_prompt(
         query=message,
         memories=memories,
         customer_profile=profile,
-        commerce_context=commerce_ctx
+        commerce_context=commerce_ctx,
+        recent_turns=recent_turns
     )
     
     # 6. Generate response
@@ -63,10 +94,18 @@ def handle_message(customer_id: str, message: str, order_context: str = None):
     # 7. Format response
     reply = format_response(raw_reply)
     
-    # 8. Retain the exchange
+    # Update short term context
+    add_short_term_context(session_id, message, reply)
+    
+    # 8. Retain the exchange (summary only, non-blocking via thread or just non-blocking API call handled in memory_service)
     t_retain_start = time.perf_counter()
-    exchange = f'Customer said: {message}\nSupport agent replied: {reply}'
-    memory_saved = retain_memory(customer_id, exchange)
+    
+    # Summarize outcome to save tokens
+    summary_len = min(100, len(reply))
+    outcome = reply[:summary_len] + '...' if len(reply) > 100 else reply
+    doc_id = f"{customer_id}-{session_id}"
+    
+    memory_saved = retain_memory(customer_id, message, outcome, doc_id)
     t_retain = time.perf_counter() - t_retain_start
     
     t_total = time.perf_counter() - t_start

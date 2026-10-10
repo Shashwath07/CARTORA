@@ -22,13 +22,15 @@ def chat():
         return jsonify({'error': 'Request body required'}), 400
     message = data.get('message', '').strip()
     order_context = data.get('order_context')
+    session_id = data.get('session_id', 'default-session')
     if not message:
         return jsonify({'error': 'Message is required'}), 400
     try:
         result = handle_message(
             customer_id=customer_id,
             message=message,
-            order_context=order_context
+            order_context=order_context,
+            session_id=session_id
         )
         return jsonify(result)
     except ValidationError as e:

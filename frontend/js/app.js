@@ -917,7 +917,7 @@ const Cartora = (function () {
                 chatMessages.appendChild(typingDiv);
                 chatMessages.scrollTop = chatMessages.scrollHeight;
                 try {
-                    const body = { message: text };
+                    const body = { message: text, session_id: convo.id };
                     if (state.orderContext) body.order_context = state.orderContext;
                     const res = await api.post('/api/chat', body);
                     const el = document.getElementById('typing');
