@@ -9,10 +9,11 @@ Cartora is a fictional e-commerce portal featuring an intelligent customer suppo
 ## 🚀 Tech Stack
 
 - **Backend:** Python 3.10+, Flask
-- **LLM Engine:** Groq API (`llama-3.3-70b-versatile`)
+- **Database:** SQLite (WAL mode)
+- **LLM Engine:** Groq API (fallback chain: `gpt-oss-120b` -> `qwen3-32b` -> `llama-3.3-70b-versatile`)
 - **Persistent Memory:** Hindsight Cloud (`hindsight-client`)
 - **Frontend:** Responsive HTML5, Modern CSS, Vanilla JavaScript
-- **Production Server:** Gunicorn
+- **Production Server:** Gunicorn (gthread workers)
 
 ---
 
@@ -51,10 +52,16 @@ Follow these steps to run Cartora locally:
    Edit `.env` and fill in your keys:
    - `GROQ_API_KEY`: Your Groq Cloud API key.
    - `HINDSIGHT_API_KEY`: Your Hindsight Cloud API key.
+   - `FLASK_SECRET_KEY`: A secure random string for session cookies.
 
 5. **Start the application**
+   For development:
    ```bash
    python app.py
+   ```
+   For production:
+   ```bash
+   gunicorn app:app --worker-class gthread --threads 4 --workers 2 --bind 0.0.0.0:5000
    ```
 
 6. **Open in browser**
@@ -64,7 +71,7 @@ Follow these steps to run Cartora locally:
 
 ## 👥 Demo Accounts
 
-Use any of the following pre-configured demo credentials to sign in:
+Use any of the following pre-configured demo credentials to sign in (passwords are safely hashed via `scrypt`):
 
 | Customer Name | Email | Password | Customer ID | Tier | Location |
 | :--- | :--- | :--- | :--- | :--- | :--- |
@@ -75,70 +82,57 @@ Use any of the following pre-configured demo credentials to sign in:
 
 ## 📂 Project Structure Overview
 
-```
+```text
 CARTORA/
 ├── .env.example              # Template environment configuration
 ├── .gitignore                # Git ignore rules
 ├── requirements.txt          # Python dependencies
 ├── README.md                 # Project documentation and quickstart
 ├── app.py                    # Main Flask application entrypoint
-├── data/                     # Application data stores (JSON-based)
+├── agent/                    # AI core logic (llm client, prompts, responses)
+├── memory/                   # Hindsight Cloud client and async retention loops
+├── backend/                  # Application backend
+│   ├── routes/               # API endpoints (Auth, Chat, Orders, Catalog)
+│   └── services/             # Core business logic (Commerce, Support, DB Ops)
+├── data/                     # Application data stores
+│   ├── commerce.db           # SQLite WAL database (Orders, Returns, Cases, Warranties)
 │   ├── demo_users.json       # Demo user credentials and mapping
 │   ├── customers.json        # Customer profiles and membership tiers
-│   ├── products.json         # Product catalog and specifications
-│   ├── orders.json           # Order history, timeline steps, tracking
-│   ├── returns.json          # Return requests records
-│   ├── warranties.json       # Warranty claims and status
-│   └── cases.json            # Support case tickets
-├── static/                   # Static assets (CSS, client JS, images)
-└── templates/                # Jinja2 HTML templates
+│   └── products.json         # Product catalog and specifications
+├── frontend/                 # Frontend assets (HTML, CSS, JS)
+├── scripts/                  # Benchmarking and load-testing utilities
+└── tests/                    # Pytest suites
 ```
 
 ---
 
 ## 🏗️ Architecture & Memory Flow
 
-```
-[ User Action / Prompt ]
-          │
-          ▼
-┌─────────────────────────────────┐
-│     Cartora Web Portal          │
-│   (Login / Authenticated Session)│
-└─────────────────────────────────┘
-          │
-          ▼
-┌─────────────────────────────────┐
-│   Context Assembler             │
-│   • Customer Profile & Tier     │
-│   • Active Orders & Returns     │
-└─────────────────────────────────┘
-          │
-          ▼
-┌─────────────────────────────────┐
-│   Hindsight Cloud: Recall       │
-│   • Retrieve past customer      │
-│     context, issues, sentiment  │
-└─────────────────────────────────┘
-          │
-          ▼
-┌─────────────────────────────────┐
-│   Groq LLM Engine               │
-│   (llama-3.3-70b-versatile)     │
-│   • Synthesize response using   │
-│     order context + recalled    │
-│     memories                    │
-└─────────────────────────────────┘
-          │
-          ▼
-┌─────────────────────────────────┐
-│   Hindsight Cloud: Retain       │
-│   • Store conversation insights │
-│     and key customer facts      │
-└─────────────────────────────────┘
-          │
-          ▼
-[ Customer Receives Contextual Support Response ]
+```mermaid
+flowchart TD
+    User([Customer]) -->|Login| UI[Cartora Web App]
+    UI -->|Chat Message + Session ID| API[Flask Backend]
+    
+    subgraph Backend Pipeline
+        API -->|Extract| Context[Commerce Context & State]
+        Context <-->|Query| SQLite[(SQLite DB)]
+        Context <-->|Rules| IntentCheck{Needs History?}
+        
+        IntentCheck -->|Yes| Recall[Hindsight: Recall Memory]
+        IntentCheck -->|No| PromptBuilder
+        
+        Recall -->|Max 500 Tokens| PromptBuilder[Fenced Prompt Builder]
+        Context --> PromptBuilder
+        
+        PromptBuilder --> LLM[Groq Fallback Chain]
+        
+        LLM --> Formatter[Response Formatting]
+        Formatter --> |Async| Retain[Hindsight: Retain Summary]
+    end
+    
+    LLM -.->|Fail| LLM2[OpenAI OSS Fallback]
+    
+    Formatter -->|Reply + Telemetry| UI
 ```
 
 ---
@@ -146,5 +140,5 @@ CARTORA/
 ## ⚠️ Prototype Disclaimer
 
 > **Note:** Cartora is a hackathon prototype built for demonstration and evaluation purposes.
-> - **Authentication:** Uses simulated demo login credentials; do not use for production authentication.
+> - **Authentication:** Uses simulated demo login credentials.
 > - **Transactions:** All orders, prices, and tracking IDs are simulated; no real payment processing is executed.
