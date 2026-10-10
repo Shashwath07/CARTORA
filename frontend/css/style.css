@@ -133,7 +133,7 @@ input, select, textarea { font-family: var(--font); }
     color: #fff;
     box-shadow: 0 2px 8px rgba(59,130,246,0.3);
 }
-.nav-icon { font-size: 18px; width: 24px; text-align: center; flex-shrink: 0; }
+.nav-icon { display: flex; align-items: center; justify-content: center; font-size: 18px; width: 24px; height: 24px; text-align: center; flex-shrink: 0; }
 .nav-badge {
     margin-left: auto;
     background: var(--error);
@@ -881,4 +881,36 @@ textarea.form-control { resize: vertical; min-height: 100px; }
     background: var(--error);
     border-radius: 50%;
     display: inline-block;
+}
+
+
+/* AI Assistant Navigation Item */
+.ai-nav-item {
+    background: linear-gradient(145deg, rgba(59, 130, 246, 0.08), rgba(139, 92, 246, 0.05));
+    border: 1px solid rgba(59, 130, 246, 0.15);
+    transition: all var(--transition);
+}
+
+.ai-nav-item:hover {
+    background: linear-gradient(145deg, rgba(59, 130, 246, 0.12), rgba(139, 92, 246, 0.08));
+    border-color: rgba(59, 130, 246, 0.25);
+    color: var(--text-primary);
+}
+
+.ai-nav-item.active {
+    background: linear-gradient(145deg, rgba(59, 130, 246, 0.2), rgba(139, 92, 246, 0.15));
+    border-color: rgba(59, 130, 246, 0.4);
+    color: var(--text-primary);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.1);
+}
+
+.ai-label {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .nav-item, .ai-nav-item {
+        transition: none !important;
+    }
 }
