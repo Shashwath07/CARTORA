@@ -133,27 +133,16 @@ const Cartora = (function () {
         },
         renderShell() {
             const sb = document.getElementById('sidebar');
-            const svgs = {
-                home: '<svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>',
-                shop: '<svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path><line x1="3" y1="6" x2="21" y2="6"></line><path d="M16 10a4 4 0 0 1-8 0"></path></svg>',
-                orders: '<svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><line x1="16.5" y1="9.4" x2="7.5" y2="4.21"></line><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>',
-                delivery: '<svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"></rect><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon><circle cx="5.5" cy="18.5" r="2.5"></circle><circle cx="18.5" cy="18.5" r="2.5"></circle></svg>',
-                returns: '<svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"></polyline><polyline points="23 20 23 14 17 14"></polyline><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"></path></svg>',
-                warranty: '<svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><polyline points="9 12 11 14 15 10"></polyline></svg>',
-                cases: '<svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect><line x1="9" y1="10" x2="15" y2="10"></line><line x1="9" y1="14" x2="15" y2="14"></line><line x1="9" y1="18" x2="11" y2="18"></line></svg>',
-                account: '<svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="10" r="3"></circle><path d="M7 20.662V19a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v1.662"></path></svg>',
-                assist: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="aiGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#06B6D4" /><stop offset="50%" stop-color="#3B82F6" /><stop offset="100%" stop-color="#8B5CF6" /></linearGradient></defs><path d="M12 2L14.4 9.6L22 12L14.4 14.4L12 22L9.6 14.4L2 12L9.6 9.6L12 2Z" fill="url(#aiGrad)"/><path d="M19 3L19.8 5.2L22 6L19.8 6.8L19 9L18.2 6.8L16 6L18.2 5.2L19 3Z" fill="url(#aiGrad)"/></svg>'
-            };
             const nav = [
-                { id: 'home', icon: svgs.home, label: 'Home' },
-                { id: 'shop', icon: svgs.shop, label: 'Shop' },
-                { id: 'orders', icon: svgs.orders, label: 'My Orders' },
-                { id: 'delivery', icon: svgs.delivery, label: 'Delivery' },
-                { id: 'returns', icon: svgs.returns, label: 'Returns & Refunds' },
-                { id: 'warranty', icon: svgs.warranty, label: 'Warranty & Repairs' },
-                { id: 'cases', icon: svgs.cases, label: 'My Cases' },
-                { id: 'account', icon: svgs.account, label: 'Account' },
-                { id: 'assist', icon: svgs.assist, label: 'Cartora Assist', isAi: true }
+                { id: 'home', icon: '🏠', label: 'Home' },
+                { id: 'shop', icon: '🛍️', label: 'Shop' },
+                { id: 'orders', icon: '📦', label: 'My Orders' },
+                { id: 'delivery', icon: '🚚', label: 'Delivery' },
+                { id: 'returns', icon: '↩️', label: 'Returns & Refunds' },
+                { id: 'warranty', icon: '🛡️', label: 'Warranty & Repairs' },
+                { id: 'assist', icon: '💬', label: 'Cartora Assist' },
+                { id: 'cases', icon: '📋', label: 'My Cases' },
+                { id: 'account', icon: '👤', label: 'Account' }
             ];
             const cartCount = state.cart.length;
             sb.innerHTML = `
@@ -164,22 +153,12 @@ const Cartora = (function () {
                         <div class="sidebar-brand-sub">E-Commerce</div>
                     </div>
                 </div>
-                <div class="sidebar-nav" style="flex: 1; overflow-y: auto;">
+                <div class="sidebar-nav">
                     <div class="nav-section-label">Navigation</div>
-                    ${nav.filter(n => !n.isAi).map(n => {
+                    ${nav.map(n => {
                         const active = state.currentPage === n.id ? 'active' : '';
                         const badge = n.id === 'cart' && cartCount ? `<span class="nav-badge">${cartCount}</span>` : '';
                         return `<a href="#${n.id}" class="nav-item ${active}"><span class="nav-icon">${n.icon}</span>${n.label}${badge}</a>`;
-                    }).join('')}
-                    ${cartCount > 0 ? `<a href="#cart" class="nav-item ${state.currentPage === 'cart' ? 'active' : ''}"><span class="nav-icon"><svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg></span>Cart<span class="nav-badge">${cartCount}</span></a>` : ''}
-                </div>
-                <div class="sidebar-footer" style="margin-top: auto; padding: 16px 20px; border-top: 1px solid var(--border-color);">
-                    ${nav.filter(n => n.isAi).map(n => {
-                        const active = state.currentPage === n.id ? 'active' : '';
-                        return `<a href="#${n.id}" class="nav-item ai-nav-item ${active}"><span class="nav-icon ai-icon">${n.icon}</span><span class="ai-label">${n.label}</span></a>`;
-                    }).join('')}
-                </div>
-            `;
                     }).join('')}
                     ${cartCount > 0 ? `<a href="#cart" class="nav-item ${state.currentPage === 'cart' ? 'active' : ''}"><span class="nav-icon">🛒</span>Cart<span class="nav-badge">${cartCount}</span></a>` : ''}
                 </div>
