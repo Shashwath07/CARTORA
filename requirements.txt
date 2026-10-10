@@ -1,6 +1,7 @@
 flask>=3.0
-python-dotenv
-groq
-hindsight-client
-gunicorn
-pytest
+python-dotenv>=1.0
+groq>=0.4.2
+hindsight-client>=0.1.2
+gunicorn>=21.2.0
+pytest>=8.0.0
+flask-limiter>=3.5.0

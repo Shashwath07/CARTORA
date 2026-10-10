@@ -23,7 +23,12 @@ def get_hindsight_client():
             if not api_key:
                 logger.warning('HINDSIGHT_API_KEY not set. Memory features will be unavailable.')
                 return None
-            _client = Hindsight(base_url=base_url, api_key=api_key)
+            _client = Hindsight(
+                base_url=base_url, 
+                api_key=api_key,
+                timeout=15,
+                max_attempts=2
+            )
             logger.info('Hindsight client initialized successfully.')
         except ImportError:
             logger.warning('hindsight-client package not installed. Memory features unavailable.')

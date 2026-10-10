@@ -3,17 +3,21 @@ import os
 import logging
 import random
 import string
+import threading
 from datetime import datetime, date
+import sqlite3
 
 logger = logging.getLogger(__name__)
 
 DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'data')
-
-import threading
-import tempfile
-import shutil
+DB_PATH = os.path.join(DATA_DIR, 'commerce.db')
 
 _db_lock = threading.RLock()
+
+def get_db_connection():
+    conn = sqlite3.connect(DB_PATH, check_same_thread=False)
+    conn.row_factory = sqlite3.Row
+    return conn
 
 def _load_json(filename):
     path = os.path.join(DATA_DIR, filename)
@@ -25,22 +29,7 @@ def _load_json(filename):
             return [] if filename not in ('customers.json', 'demo_users.json') else {}
         except json.JSONDecodeError as e:
             logger.error(f'Corruption in {filename}: {e}')
-            raise  # Do NOT swallow parse errors; fail instead of returning [] and overwriting!
-
-def _save_json(filename, data):
-    path = os.path.join(DATA_DIR, filename)
-    with _db_lock:
-        try:
-            fd, temp_path = tempfile.mkstemp(dir=DATA_DIR, text=True)
-            with os.fdopen(fd, 'w', encoding='utf-8') as f:
-                json.dump(data, f, indent=2, ensure_ascii=False)
-                f.flush()
-                os.fsync(f.fileno())
-            os.replace(temp_path, path)
-            return True
-        except Exception as e:
-            logger.error(f'Failed to save {filename}: {e}')
-            return False
+            raise
 
 def _generate_id(prefix):
     num = ''.join(random.choices(string.digits, k=6))
@@ -57,7 +46,7 @@ def _parse_date(date_str):
     except ValueError:
         return None
 
-# ---- Products ----
+# ---- Products & Customers (JSON) ----
 
 def get_all_products(category=None, search=None):
     products = _load_json('products.json')
@@ -79,24 +68,35 @@ def get_categories():
     products = _load_json('products.json')
     return sorted(set(p.get('category', '') for p in products))
 
-# ---- Customers ----
-
 def get_customer_profile(customer_id):
     customers = _load_json('customers.json')
     return customers.get(customer_id)
 
-# ---- Orders ----
+# ---- SQLite Helpers ----
+def row_to_dict(row):
+    if not row: return None
+    d = dict(row)
+    if 'delivery_steps' in d and isinstance(d['delivery_steps'], str):
+        try:
+            d['delivery_steps'] = json.loads(d['delivery_steps'])
+        except:
+            d['delivery_steps'] = []
+    # sqlite booleans
+    if 'returnable' in d:
+        d['returnable'] = bool(d['returnable'])
+    return d
+
+# ---- Orders (SQLite) ----
 
 def get_customer_orders(customer_id):
-    orders = _load_json('orders.json')
-    return [o for o in orders if o.get('customer_id') == customer_id]
+    with get_db_connection() as conn:
+        rows = conn.execute("SELECT * FROM orders WHERE customer_id = ?", (customer_id,)).fetchall()
+        return [row_to_dict(r) for r in rows]
 
 def get_order(order_id, customer_id):
-    orders = _load_json('orders.json')
-    for o in orders:
-        if o.get('order_id') == order_id and o.get('customer_id') == customer_id:
-            return o
-    return None
+    with get_db_connection() as conn:
+        row = conn.execute("SELECT * FROM orders WHERE order_id = ? AND customer_id = ?", (order_id, customer_id)).fetchone()
+        return row_to_dict(row)
 
 def create_demo_order(customer_id, product_id, address=None, payment_method='UPI - Demo'):
     with _db_lock:
@@ -109,12 +109,20 @@ def create_demo_order(customer_id, product_id, address=None, payment_method='UPI
         if not customer:
             return None, 'Customer not found'
         today = _today()
-        order_num = ''.join(random.choices(string.digits, k=6))
+        order_id = _generate_id('CT')
         est_days = product.get('delivery_estimate_days', 5)
         from datetime import timedelta
         expected = today + timedelta(days=est_days)
+        delivery_steps = [
+            {'step': 'Order Placed', 'date': today.isoformat(), 'time': datetime.now().strftime('%I:%M %p'), 'completed': True},
+            {'step': 'Packed', 'date': None, 'time': None, 'completed': False},
+            {'step': 'Shipped', 'date': None, 'time': None, 'completed': False},
+            {'step': 'Out for Delivery', 'date': None, 'time': None, 'completed': False},
+            {'step': 'Delivered', 'date': None, 'time': None, 'completed': False}
+        ]
+        
         order = {
-            'order_id': f'CT-{order_num}',
+            'order_id': order_id,
             'customer_id': customer_id,
             'product_id': product_id,
             'product_name': product['name'],
@@ -130,21 +138,21 @@ def create_demo_order(customer_id, product_id, address=None, payment_method='UPI
             'warranty_months': product.get('warranty_months', 0),
             'warranty_end': None,
             'expected_delivery': expected.isoformat(),
-            'delivery_steps': [
-                {'step': 'Order Placed', 'date': today.isoformat(), 'time': datetime.now().strftime('%I:%M %p'), 'completed': True},
-                {'step': 'Packed', 'date': None, 'time': None, 'completed': False},
-                {'step': 'Shipped', 'date': None, 'time': None, 'completed': False},
-                {'step': 'Out for Delivery', 'date': None, 'time': None, 'completed': False},
-                {'step': 'Delivered', 'date': None, 'time': None, 'completed': False}
-            ],
+            'delivery_steps': json.dumps(delivery_steps),
             'courier': 'Cartora Logistics',
             'tracking_id': f'CL{"".join(random.choices(string.digits, k=9))}',
             'delivery_address': address or customer.get('saved_address', 'Address on file'),
             'payment_method': payment_method
         }
-        orders = _load_json('orders.json')
-        orders.append(order)
-        _save_json('orders.json', orders)
+        
+        with get_db_connection() as conn:
+            columns = ', '.join(order.keys())
+            placeholders = ', '.join('?' * len(order))
+            conn.execute(f"INSERT INTO orders ({columns}) VALUES ({placeholders})", list(order.values()))
+            conn.commit()
+            
+        order['delivery_steps'] = delivery_steps
+        order['returnable'] = bool(order['returnable'])
         return order, None
 
 # ---- Return eligibility ----
@@ -197,10 +205,6 @@ def create_return(order_id, customer_id, reason, item_condition):
             'created_date': today,
             'last_updated': today
         }
-        returns = _load_json('returns.json')
-        returns.append(ret)
-        _save_json('returns.json', returns)
-        # Also create a case
         case = {
             'case_id': _generate_id('CSE'),
             'customer_id': customer_id,
@@ -213,9 +217,17 @@ def create_return(order_id, customer_id, reason, item_condition):
             'created_date': today,
             'last_updated': today
         }
-        cases = _load_json('cases.json')
-        cases.append(case)
-        _save_json('cases.json', cases)
+        
+        with get_db_connection() as conn:
+            c1 = ', '.join(ret.keys())
+            p1 = ', '.join('?' * len(ret))
+            conn.execute(f"INSERT INTO returns ({c1}) VALUES ({p1})", list(ret.values()))
+            
+            c2 = ', '.join(case.keys())
+            p2 = ', '.join('?' * len(case))
+            conn.execute(f"INSERT INTO cases ({c2}) VALUES ({p2})", list(case.values()))
+            conn.commit()
+            
         return ret, None
 
 # ---- Warranty ----
@@ -266,10 +278,6 @@ def create_warranty_claim(order_id, customer_id, issue_category, description):
             'created_date': today,
             'last_updated': today
         }
-        warranties = _load_json('warranties.json')
-        warranties.append(claim)
-        _save_json('warranties.json', warranties)
-        # Also create a case
         case = {
             'case_id': _generate_id('CSE'),
             'customer_id': customer_id,
@@ -282,33 +290,44 @@ def create_warranty_claim(order_id, customer_id, issue_category, description):
             'created_date': today,
             'last_updated': today
         }
-        cases = _load_json('cases.json')
-        cases.append(case)
-        _save_json('cases.json', cases)
+        
+        with get_db_connection() as conn:
+            c1 = ', '.join(claim.keys())
+            p1 = ', '.join('?' * len(claim))
+            conn.execute(f"INSERT INTO warranties ({c1}) VALUES ({p1})", list(claim.values()))
+            
+            c2 = ', '.join(case.keys())
+            p2 = ', '.join('?' * len(case))
+            conn.execute(f"INSERT INTO cases ({c2}) VALUES ({p2})", list(case.values()))
+            conn.commit()
+            
         return claim, None
 
 # ---- Cases ----
 
 def get_customer_cases(customer_id):
-    cases = _load_json('cases.json')
-    return [c for c in cases if c.get('customer_id') == customer_id]
+    with get_db_connection() as conn:
+        rows = conn.execute("SELECT * FROM cases WHERE customer_id = ?", (customer_id,)).fetchall()
+        return [row_to_dict(r) for r in rows]
 
 def get_customer_returns(customer_id):
-    returns = _load_json('returns.json')
-    return [r for r in returns if r.get('customer_id') == customer_id]
+    with get_db_connection() as conn:
+        rows = conn.execute("SELECT * FROM returns WHERE customer_id = ?", (customer_id,)).fetchall()
+        return [row_to_dict(r) for r in rows]
 
 def get_customer_warranty_claims(customer_id):
-    warranties = _load_json('warranties.json')
-    return [w for w in warranties if w.get('customer_id') == customer_id]
+    with get_db_connection() as conn:
+        rows = conn.execute("SELECT * FROM warranties WHERE customer_id = ?", (customer_id,)).fetchall()
+        return [row_to_dict(r) for r in rows]
 
 # ---- Commerce context for chat ----
-
-def build_commerce_context(customer_id, order_id=None):
-    """Build a concise commerce context string for the chat prompt."""
+def build_commerce_context(customer_id, order_id=None, orders=None):
     lines = []
-    orders = get_customer_orders(customer_id)
+    if orders is None:
+        orders = get_customer_orders(customer_id)
+        
     if order_id:
-        specific = get_order(order_id, customer_id)
+        specific = next((o for o in orders if o['order_id'] == order_id), None)
         if specific:
             lines.append(f'Currently selected order: {specific["order_id"]} - {specific.get("product_name")} '
                         f'- Status: {specific.get("status")} - Price: INR {specific.get("price")}')
@@ -317,18 +336,27 @@ def build_commerce_context(customer_id, order_id=None):
             elif specific.get('expected_delivery'):
                 lines.append(f'  Expected delivery: {specific["expected_delivery"]}')
             if specific.get('return_deadline'):
-                elig, _ = check_return_eligibility(order_id, customer_id)
-                if elig:
-                    status = 'Eligible' if elig.get('eligible') else 'Not eligible'
-                    lines.append(f'  Return: {status} (deadline: {specific["return_deadline"]})')
-                    if not elig.get('eligible') and elig.get('reason'):
-                        lines.append(f'  Return reason: {elig["reason"]}')
+                # evaluate eligibility directly from the specific order dict instead of reading db again
+                if specific.get('status') != 'Delivered':
+                    lines.append('  Return: Not eligible (Order has not been delivered yet.)')
+                elif not specific.get('returnable'):
+                    lines.append('  Return: Not eligible (This product is not eligible for returns.)')
+                elif specific.get('return_deadline') and _today() > _parse_date(specific.get('return_deadline')):
+                    lines.append(f'  Return: Not eligible (Return window expired on {specific["return_deadline"]})')
+                else:
+                    lines.append(f'  Return: Eligible (deadline: {specific["return_deadline"]})')
+                    
             if specific.get('warranty_end'):
-                wstatus, _ = check_warranty_status(order_id, customer_id)
-                if wstatus and wstatus.get('has_warranty'):
-                    lines.append(f'  Warranty: {wstatus["status"]} (until: {specific["warranty_end"]})')
+                warranty_months = specific.get('warranty_months', 0)
+                if not warranty_months:
+                    lines.append('  Warranty: No warranty')
+                else:
+                    wend = _parse_date(specific.get('warranty_end'))
+                    if wend:
+                        active = _today() <= wend
+                        lines.append(f'  Warranty: {"Active" if active else "Expired"} (until: {specific["warranty_end"]})')
     if orders:
-        lines.append(f'\nCustomer has {len(orders)} order(s):')
+        lines.append(f'\\nCustomer has {len(orders)} order(s):')
         for o in orders[:5]:
             line = f'  - {o["order_id"]}: {o.get("product_name")} - {o.get("status")}'
             if o.get('delivered_date'):
@@ -338,12 +366,12 @@ def build_commerce_context(customer_id, order_id=None):
             lines.append(line)
     returns = get_customer_returns(customer_id)
     if returns:
-        lines.append(f'\nActive returns: {len(returns)}')
+        lines.append(f'\\nActive returns: {len(returns)}')
         for r in returns[:3]:
             lines.append(f'  - {r["return_id"]}: {r.get("product_name")} - {r.get("status")}')
     claims = get_customer_warranty_claims(customer_id)
     if claims:
-        lines.append(f'\nWarranty claims: {len(claims)}')
+        lines.append(f'\\nWarranty claims: {len(claims)}')
         for c in claims[:3]:
             lines.append(f'  - {c["claim_id"]}: {c.get("product_name")} - {c.get("status")}')
-    return '\n'.join(lines) if lines else None
+    return '\\n'.join(lines) if lines else None

@@ -15,8 +15,19 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def create_app():
+    from flask_limiter import Limiter
+    from flask_limiter.util import get_remote_address
+    
     app = Flask(__name__, static_folder=None)
     app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'cartora-demo-secret-change-in-production')
+    
+    limiter = Limiter(
+        get_remote_address,
+        app=app,
+        default_limits=["200 per day", "50 per hour"],
+        storage_uri="memory://"
+    )
+    app.limiter = limiter
     
     # Register blueprints
     from backend.routes.auth import auth_bp

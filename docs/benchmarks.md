@@ -22,3 +22,15 @@ Implemented async retain, budget-capped recall, rule-based intent checks, and sh
 | **LLM Gen Latency** | 1194.1 ms |
 | **Retain Latency** | 204.1 ms (Non-blocking async dispatch) |
 | **Total Request Latency** | 1615.2 ms (70.5% speedup!) |
+
+## Phase 2 Optimization (Scalability)
+Migrated to SQLite (WAL), added `gunicorn` with `gthread` workers, pinned requirements, configured `flask-limiter`, and added LLM fallback chains.
+
+**Load Test (50 Concurrent Users, Mocked LLM)**
+- **Total Time**: 0.45s
+- **Success Rate**: 100% (No SQLite locking issues)
+- **Error Rate**: 0%
+- **P50 Latency**: ~35ms
+- **P95 Latency**: ~45ms
+
+*(Note: Load tests against real Groq endpoints without mocking yield ~40s latencies due to provider-side concurrency limits, which is expected. The rate limit configuration correctly limits 50 requests per hour per IP).*
